@@ -1,0 +1,9 @@
+SECRET_KEY='xxx'
+
+DJANGO_DEBUG=True
+
+ALLOWED_HOSTS="127.0.0.1, localhost, wg.mysite.org, wireguard.mysite.org"
+CSRF_TRUSTED_ORIGINS="https://wg.mysite.org, https://wireguard.mysite.org"
+
+WIREGUARD_CONFIG_BASE_PATH=/etc/wireguard
+TMP_SERVER_FILE=/tmp/srv.cfg

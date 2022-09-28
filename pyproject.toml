@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "wg-manager"
+version = "0.1.0"
+description = "WireGuard VPN server manager"
+authors = ["mamashin <mamashin@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+Django = "^4"
+loguru = "^0.6"
+python-decouple = "^3.5"
+paramiko = "^2.10.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

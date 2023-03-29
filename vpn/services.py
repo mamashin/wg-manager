@@ -12,7 +12,7 @@ from loguru import logger
 from .models import Client, Server
 
 
-def generate_client_config(client_id: int = None):
+def generate_client_config(client_id: int = None) -> list:
     client_instance = Client.objects.get(id=client_id)
     server_instance = Server.objects.get(id=client_instance.server_id)
     all_clients = []
@@ -51,7 +51,7 @@ Table = off
 [Peer]
 # Name = {client.name}
 PublicKey = {client.data.get('public_key')}
-AllowedIPs = {client.data.get('ip')}/32
+AllowedIPs = {client.data.get('ip')}/32{',' + client.data.get('allowed') if client.data.get('allowed') else ''}
 PersistentKeepalive = {server_instance.data.get('persistent')}
 
 """
@@ -79,16 +79,23 @@ def write_server_config(srv_id):
     os.chmod(config('TMP_SERVER_FILE'), 0o600)
 
 
-def ssh_keygen(srv_id):
-    # Generate ssh keys for each server
+def ssh_keygen(srv_id, copy_ssh_key_id=None):
+    # Generate ssh keys for each server, run only once when server created
     import subprocess
     from django.conf import settings
+    if copy_ssh_key_id:
+        # If server with same ip/hostname exist, copy ssh keys and exit
+        subprocess.run(['cp', f'{settings.BASE_DIR}/config/keys/{copy_ssh_key_id}',
+                        f'{settings.BASE_DIR}/config/keys/{srv_id}'], capture_output=False)
+        subprocess.run(['cp', f'{settings.BASE_DIR}/config/keys/{copy_ssh_key_id}.pub',
+                        f'{settings.BASE_DIR}/config/keys/{srv_id}.pub'], capture_output=False)
+        return
     subprocess.check_output(f'ssh-keygen -q -t rsa -m PEM -f {settings.BASE_DIR}/config/keys/{srv_id} -N ""',
                             shell=True)
 
 
 def ssh_remote_server(srv_instance: Server, client_instance: Client = None,
-                      restart: bool = False, statistic: bool = False) -> dict:
+                      restart: bool = False, statistic: bool = False, stop: bool = False) -> dict:
     result = {'ok': False}
     import paramiko
     from django.conf import settings
@@ -131,6 +138,8 @@ def ssh_remote_server(srv_instance: Server, client_instance: Client = None,
 
     if restart:
         stdin, stdout, stderr = client.exec_command(f"service wg-quick@{srv_instance.data.get('interface')} restart")
+    if stop:
+        stdin, stdout, stderr = client.exec_command(f"service wg-quick@{srv_instance.data.get('interface')} stop")
     sftp.close()
     client.close()
 

@@ -9,12 +9,17 @@ from django.contrib.auth.models import User
 from ipaddress import IPv4Network, ip_address, AddressValueError
 
 
+def default_server_data():
+    return {'interface': 'wg0'}
+
+
 class Server(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False, verbose_name="Server name")
     ip = models.CharField(max_length=255, verbose_name="IP/Hostname", default='0.0.0.0', blank=False, null=False)
     port = models.IntegerField(verbose_name="port", default=41800, blank=False)
     network = models.CharField(max_length=255, verbose_name="Network", default='10.10.10.0/24', blank=False, null=False)
-    data = models.JSONField(default=dict, verbose_name="Server data", blank=True)
+    data = models.JSONField(default=default_server_data, verbose_name="Server data", blank=True)
+    is_enable = models.BooleanField(default=True, verbose_name="Active")
 
     def __str__(self):
         return f'{self.name}'
@@ -67,7 +72,8 @@ class Client(models.Model):
     @property
     def set_add(self) -> str:
         interface = self.server.data.get('interface') if self.server.data.get('interface') else 'wg0'
-        return f'wg set {interface} peer {self.data.get("public_key")} allowed-ips {self.data.get("ip")}/32 ' \
+        return f'wg set {interface} peer {self.data.get("public_key")} allowed-ips {self.data.get("ip")}/32' \
+               f'{"," + self.data.get("allowed") if self.data.get("allowed") else ""} '\
                f'persistent-keepalive {self.server.data.get("persistent")}'
 
     @property

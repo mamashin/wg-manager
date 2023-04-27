@@ -78,10 +78,10 @@ class ClientForm(forms.ModelForm):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ['name', 'server', 'ip', 'is_enable',  'group', 'last_seen', 'traffic', 'config_link']
+    list_display = ['name', 'server', 'ip', 'is_enable',  'group', 'last_seen', 'traffic', 'remote_ip', 'config_link']
     readonly_fields = ['rnd', 'created_at', 'update_at']
     search_fields = ['name', 'data__ip']
-    list_editable = ['is_enable', ]
+    # list_editable = ['is_enable', ]
     list_filter = ['group__name', 'server', 'is_enable']
     form = ClientForm
     # change_list_template = "admin/config_wg.html"

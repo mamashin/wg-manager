@@ -11,6 +11,9 @@ from django.core.cache import cache
 from loguru import logger
 from .models import Client, Server
 
+from datetime import datetime
+import humanize
+
 
 def generate_client_config(client_id: int = None) -> list:
     client_instance = Client.objects.get(id=client_id)
@@ -111,16 +114,36 @@ def ssh_remote_server(srv_instance: Server, client_instance: Client = None,
         return result
 
     if statistic:
-        stdin, stdout, stderr = client.exec_command(f'wg show {srv_instance.data.get("interface")}')
+        stats = {}
+        stdin, stdout, stderr = client.exec_command('wg show all dump')
         out = stdout.read().decode('utf-8')
         client.close()
-        stat_list = [s.strip() for s in out.split('\n')]
-        for index, line in enumerate(stat_list):
-            if line.startswith('peer') and stat_list[index+1].startswith('endpoint'):
-                peer = re.findall(r'peer:\s(\S+)', line)[0]
-                last_seen = re.findall(r'latest handshake:\s(.*)', stat_list[index+3])[0]
-                traffic = re.findall(r'transfer:\s(.*)', stat_list[index+4])[0]
-                cache.set(peer, {'last_seen': last_seen, 'traffic': traffic}, 300)
+        """
+        Dumps looks like:
+        wg0	8GISFUGGDsg1AzV4co7FU6d6YQUyG3txxxxxxxxxxxx=	jvbsBUsx67JP1Au5Ejcy5dyRUzFbxxxxxxxxxxxx=	41800	off
+        wg0	ll1spR1+/PLDFVl0AKwzXT2P7fg+svwrU5dd3mx9nSI=	(none)	(none)	172.16.208.2/32	0	0	0	20
+        wg0	ZfHvDtfbF7/UANYN4RWa8mli3hL7tRgm5W1Uef/Sjkk=	(none)	(none)	172.16.208.3/32	0	0	0	20
+        wg0	p+pVmawyYA63GQZk5uU9VHC5P4+D6CmDAO/UR9vmwR0=	(none)	111.11.111.195:11122	172.16.208.4/32	1680364116	2581732	31106272	20
+        """
+        for line in [s.strip() for s in out.split('\n')]:
+            if not line:
+                continue
+            params = line.split('\t')
+            if len(params) != 9:
+                continue
+            stats[params[1]] = {
+                'interface': params[0],
+                'remote_ip': params[3] if params[3] != '(none)' else None,
+                'local_ip': params[4] if params[4] != '(none)' else None,
+                'last_handshake': params[5],
+                'rx_bytes': params[6],
+                'tx_bytes': params[7],
+                'last_seen': humanize.naturaltime(datetime.fromtimestamp(int(params[5]))) if int(params[5]) else '-',
+                'traffic': f'{humanize.naturalsize(int(params[6]))} / {humanize.naturalsize(int(params[7]))}'
+            }
+            # Store to cache for 5 minutes
+            cache.set(params[1], stats[params[1]], 300)
+
         result['ok'] = True
         return result
 

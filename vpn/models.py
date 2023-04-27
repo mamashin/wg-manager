@@ -95,6 +95,13 @@ class Client(models.Model):
             return cache_data.get('traffic')
         return '-'
 
+    @property
+    def remote_ip(self) -> str:
+        cache_data = cache.get(self.data.get('public_key'))
+        if cache_data and cache_data.get('remote_ip'):
+            return cache_data.get('remote_ip').split(':')[0]
+        return '-'
+
     def save(self, *args, **kwargs):
         created = self._state.adding
         if created:

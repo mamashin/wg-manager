@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+
 from django.contrib import admin
 from django.contrib import messages
 from django.http import HttpResponseRedirect
@@ -9,6 +10,9 @@ from django import forms
 from loguru import logger
 from .models import Server, Group, Client
 from django.urls import path
+from django.utils.translation import gettext_lazy as _
+from django.db import models
+from django.forms import Textarea
 
 from .services import get_client_file
 
@@ -69,6 +73,18 @@ class ServerAdmin(admin.ModelAdmin):
 class GroupAdmin(admin.ModelAdmin):
     list_display = ['name', ]
 
+    formfield_overrides = {
+        models.TextField: {'widget': Textarea(
+            attrs={'rows': 7,
+                   'cols': 50,
+                   'style': 'font-family: monospace; font-size: 15px;'})},
+    }
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        form = super().get_form(request, obj=obj, change=change, **kwargs)
+        form.base_fields["ips"].help_text = _("Allowed IPs, comma-separated")
+        return form
+
 
 class ClientForm(forms.ModelForm):
     data = forms.JSONField(encoder=PrettyJSONEncoder, initial=dict, required=False, label='Client json data',
@@ -78,17 +94,36 @@ class ClientForm(forms.ModelForm):
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ['name', 'server', 'ip', 'is_enable',  'group', 'last_seen', 'traffic', 'remote_ip', 'config_link']
-    readonly_fields = ['rnd', 'created_at', 'update_at']
+    list_display = ['name', 'server', 'ip', 'is_enable', 'enable_download', 'group', 'last_seen', 'traffic',
+                    'remote_ip', 'config_link', 'config_download', 'download_count']
+    readonly_fields = ['rnd', 'created_at', 'update_at', 'download_count']
     search_fields = ['name', 'data__ip']
-    # list_editable = ['is_enable', ]
-    list_filter = ['group__name', 'server', 'is_enable']
+    # list_filter = ['group__name', 'server', 'is_enable']
+    list_editable = ['is_enable', 'enable_download']
     form = ClientForm
     # change_list_template = "admin/config_wg.html"
+    fieldsets = (
+        (None, {'fields': ('name',)}),
+        (None, {'fields': ('description',)}),
+        (None, {'fields': ('is_enable',)}),
+        (None, {'fields': ('enable_download',)}),
+        (None, {'fields': ('server',)}),
+        (None, {'fields': ('group',)}),
+        (None, {'fields': ('data',)}),
+        (None, {'fields': ('created_at', 'update_at')}),
+    )
 
     @staticmethod
+    @admin.display(description=format_html(f"<center>{_('download cfg')}</center>"))
+    def config_download(obj):
+        return format_html(f"<center><a href='get_config/{obj.id}/'>💾</a></center>")
+
+    @staticmethod
+    @admin.display(description=format_html(f"<center>{_('cfg link')}</center>"))
     def config_link(obj):
-        return format_html(f"<a href='get_config/{obj.id}/'>config-{obj.id}</a> (<a href='/cfg/{obj.rnd}/'>link</a>)")
+        return format_html(f"<center><a href='/cfg/{obj.rnd}/'>cfg-{obj.id}</a>"
+                           f"<a href='#' onClick=copyToClipboard('/cfg/{obj.rnd}/') title='Copy link'> ✅</a></center>"
+                           )
 
     @staticmethod
     def client_config(request, config_id):
@@ -104,3 +139,6 @@ class ClientAdmin(admin.ModelAdmin):
     @staticmethod
     def ip(obj):
         return f'{obj.data.get("ip")}'
+
+    class Media:
+        js = ('admin/js/copy.js',)

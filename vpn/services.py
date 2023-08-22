@@ -29,9 +29,11 @@ DNS = 1.1.1.1,8.8.8.8
 [Peer]
 Endpoint = {server_instance.ip}:{server_instance.port}
 PublicKey = {server_instance.data.get('public_key')}
-AllowedIPs = {server_instance.data.get('route') if server_instance.data.get('route') else '0.0.0.0/0'}
+AllowedIPs = {client_instance.group.ips_for_config}
 
 """
+    # AllowedIPs = {server_instance.data.get('route') if server_instance.data.get('route') else '0.0.0.0/0'}
+
     all_clients.append((interface, peer))
     return all_clients
 
@@ -62,14 +64,19 @@ PersistentKeepalive = {server_instance.data.get('persistent')}
     return all_cfg
 
 
-def get_client_file(client_id: int):
-    raw_list = generate_client_config(client_id)
+def get_client_file(client_instance: Client) -> HttpResponse:
+    if isinstance(client_instance, int):
+        logger.info(f'get_client_file: {client_instance}')
+        client_instance = Client.objects.get(id=client_instance)
+    raw_list = generate_client_config(client_instance.id)
     response = HttpResponse(
         content_type='application/octet-stream',
-        headers={'Content-Disposition': f'attachment; filename="vpn-wg-{client_id}.conf"'},
+        headers={'Content-Disposition': f'attachment; filename="vpn-wg-{client_instance.id}.conf"'},
     )
     response.write(raw_list[0][0])
     response.write(raw_list[0][1])
+    client_instance.download_count += 1
+    client_instance.save()
     return response
 
 

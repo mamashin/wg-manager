@@ -12,7 +12,7 @@ from .models import Server, Client
 def server_post_save(sender, instance: Server, created, **kwargs):
     copy_ssh_key_id = None
     if created:
-        if exist_srv := Server.objects.filter(ip=instance.ip).first():
+        if exist_srv := Server.objects.filter(ip=instance.ip).exclude(pk=instance.id).first():
             logger.info(f'Exist server with ip {instance.ip}, make copy ssh key from {exist_srv.name}')
             copy_ssh_key_id = exist_srv.id
         from .services import ssh_keygen
@@ -25,7 +25,7 @@ def server_post_save(sender, instance: Server, created, **kwargs):
 @receiver(post_save, sender=Client)
 def client_post_save(sender, instance: Client, created, **kwargs):
     from vpn.services import ssh_remote_server
-    logger.info(instance)
+    # logger.info(instance)
     ssh_remote_server(instance.server, client_instance=instance)
 
 

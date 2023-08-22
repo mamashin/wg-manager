@@ -38,6 +38,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
 
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -91,7 +92,12 @@ STATIC_ROOT = BASE_DIR / 'static'
 MEDIA_ROOT = BASE_DIR / 'media'
 LOGS_ROOT = BASE_DIR / 'logs'
 
-# STATICFILES_DIRS = [APPS_DIR / 'config/static', ]
+if not DEBUG:
+    STATIC_ROOT = ROOT_DIR / 'nginx/static'
+    MEDIA_ROOT = ROOT_DIR / 'nginx/media'
+    LOGS_ROOT = ROOT_DIR / 'logs'
+
+STATICFILES_DIRS = [APPS_DIR / 'config/static', ]
 
 STATICFILES_FINDERS = [
   'django.contrib.staticfiles.finders.FileSystemFinder',

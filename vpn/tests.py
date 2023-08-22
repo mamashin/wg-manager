@@ -1,3 +1,3 @@
 from django.test import TestCase
 
-#  ¯\_(ツ)_/¯
+# Create your tests here.

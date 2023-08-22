@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import random
+import re
+from loguru import logger
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.cache import cache
 from django.contrib.auth.models import User
-from ipaddress import IPv4Network, ip_address, AddressValueError
+from ipaddress import IPv4Network, ip_address, AddressValueError, ip_network
+from django.utils.translation import gettext_lazy as _
 
 
 def default_server_data():
@@ -14,15 +17,19 @@ def default_server_data():
 
 
 class Server(models.Model):
-    name = models.CharField(max_length=255, blank=False, null=False, verbose_name="Server name")
+    name = models.CharField(max_length=255, blank=False, null=False, verbose_name=_("Server name"))
     ip = models.CharField(max_length=255, verbose_name="IP/Hostname", default='0.0.0.0', blank=False, null=False)
     port = models.IntegerField(verbose_name="port", default=41800, blank=False)
     network = models.CharField(max_length=255, verbose_name="Network", default='10.10.10.0/24', blank=False, null=False)
     data = models.JSONField(default=default_server_data, verbose_name="Server data", blank=True)
-    is_enable = models.BooleanField(default=True, verbose_name="Active")
+    is_enable = models.BooleanField(default=True, verbose_name=_("Active"))
 
     def __str__(self):
         return f'{self.name}'
+
+    class Meta:
+        verbose_name = _('Server')
+        verbose_name_plural = _('Servers')
 
     @property
     def ssh_copy_id_help(self) -> str:
@@ -50,24 +57,56 @@ class Server(models.Model):
 
 class Group(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False, verbose_name="Client group")
+    ips = models.TextField(verbose_name=_("Allowed IPs"), blank=True, null=True, default='0.0.0.0/0')
+    description = models.CharField(verbose_name=_("Description"), blank=True, null=True, max_length=255)
 
     def __str__(self):
         return f'{self.name}'
+
+    class Meta:
+        verbose_name = _('Client group')
+        verbose_name_plural = _('Client groups')
+
+    def clean(self):
+        clean_string = re.sub(r'\s+', '', self.ips)
+        if '0.0.0.0/0' in clean_string:
+            self.ips = '0.0.0.0/0'
+            return
+
+        clean_string_list = clean_string.strip(',').split(',')
+        for ip in clean_string_list:
+            try:
+                ip_network(ip, strict=False)
+            except (ValueError, AddressValueError):
+                raise ValidationError({"ips": f"{ip} - not looks like valid IP address or network"})
+        self.ips = ',\n'.join(clean_string_list)
+
+    @property
+    def ips_for_config(self):
+        clean_string = re.sub(r'\s+', '', self.ips)
+        return clean_string
 
 
 class Client(models.Model):
-    name = models.CharField(max_length=255, verbose_name="Client name", db_index=True, blank=False, null=False)
-    is_enable = models.BooleanField(default=True, verbose_name="Active")
-    created_at = models.DateTimeField(verbose_name="Create time", auto_now_add=True)
-    update_at = models.DateTimeField(verbose_name="Update time", auto_now=True)
-    group = models.ForeignKey(Group, null=False, on_delete=models.DO_NOTHING)
+    name = models.CharField(max_length=255, verbose_name=_("Client name"), db_index=True, blank=False, null=False)
+    description = models.TextField(verbose_name=_("Description"), blank=True, null=True)
+    is_enable = models.BooleanField(default=True, verbose_name=_("Active"))
+    created_at = models.DateTimeField(verbose_name=_("Create time"), auto_now_add=True)
+    update_at = models.DateTimeField(verbose_name=_("Update time"), auto_now=True)
+    group = models.ForeignKey(Group, null=False, on_delete=models.DO_NOTHING, verbose_name=_("Client group"))
     rnd = models.CharField(max_length=255, blank=True, null=True, verbose_name="RND ID", db_index=True)
     server = models.ForeignKey(Server, blank=False, null=True,
-                               on_delete=models.SET_NULL, verbose_name='Server')
-    data = models.JSONField(default=dict, verbose_name="Client data", blank=True)
+                               on_delete=models.SET_NULL, verbose_name=_('Server'))
+    data = models.JSONField(default=dict, verbose_name=_("Client data"), blank=True)
+    download_count = models.IntegerField(default=0, verbose_name=_("Download count"))
+    enable_download = models.BooleanField(default=True, verbose_name=_("Enable download"))
 
     def __str__(self):
         return f'{self.name}'
+
+    class Meta:
+        verbose_name = _('Client')
+        verbose_name_plural = _('Clients')
 
     @property
     def set_add(self) -> str:

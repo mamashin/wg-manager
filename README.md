@@ -16,3 +16,5 @@ Setup:
 ![Server screen](server-screen.png "Server screen")
 
 ![Client screen](client-screen.png "Client screen")
+
+![Group screen](group-screen.png "Group screen")

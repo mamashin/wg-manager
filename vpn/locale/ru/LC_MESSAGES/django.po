@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-08-20 14:59+0300\n"
+"POT-Creation-Date: 2023-08-23 23:45+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,7 +20,15 @@ msgstr ""
 "n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || "
 "(n%100>=11 && n%100<=14)? 2 : 3);\n"
 
-#: vpn/admin.py:85
+#: vpn/admin.py:29
+msgid "Cfg link"
+msgstr "Ссылка на конфиг"
+
+#: vpn/admin.py:30
+msgid "Download cfg"
+msgstr "Скачать конфиг"
+
+#: vpn/admin.py:112
 msgid "Allowed IPs, comma-separated"
 msgstr "Доступные IP/сети, через запятую"
 
@@ -28,70 +36,70 @@ msgstr "Доступные IP/сети, через запятую"
 msgid "Server name"
 msgstr "Имя сервера"
 
-#: vpn/models.py:25 vpn/models.py:84
+#: vpn/models.py:25 vpn/models.py:93
 msgid "Active"
 msgstr "Активный"
 
-#: vpn/models.py:31 vpn/models.py:90
+#: vpn/models.py:31 vpn/models.py:99
 msgid "Server"
 msgstr "Сервер"
 
 #: vpn/models.py:32
-#, fuzzy
-#| msgid "Server"
 msgid "Servers"
-msgstr "Сервер"
+msgstr "🖥️ Сервера"
 
 #: vpn/models.py:60
 msgid "Allowed IPs"
 msgstr "Доступные IP"
 
-#: vpn/models.py:61 vpn/models.py:83
+#: vpn/models.py:61 vpn/models.py:92
 msgid "Description"
 msgstr "Описание"
 
-#: vpn/models.py:67 vpn/models.py:87
-msgid "Client group"
-msgstr "Группа"
+#: vpn/models.py:67
+msgid "Access group"
+msgstr "Группы доступа"
 
 #: vpn/models.py:68
-#, fuzzy
-#| msgid "Client group"
-msgid "Client groups"
-msgstr "Группа"
+msgid "Access groups"
+msgstr "👥 Группы доступа"
 
-#: vpn/models.py:82
+#: vpn/models.py:91
 msgid "Client name"
 msgstr "Имя клиента"
 
-#: vpn/models.py:85
+#: vpn/models.py:94
 msgid "Create time"
 msgstr "Время создания"
 
-#: vpn/models.py:86
+#: vpn/models.py:95
 msgid "Update time"
 msgstr "Время обновления"
 
-#: vpn/models.py:91
+#: vpn/models.py:96
+msgid "Client group"
+msgstr "Группа"
+
+#: vpn/models.py:100
 msgid "Client data"
 msgstr "Данные клиента"
 
-#: vpn/models.py:92
+#: vpn/models.py:101
 msgid "Download count"
-msgstr "Кол-во скачиваний"
+msgstr "Скачиваний"
 
-#: vpn/models.py:93
+#: vpn/models.py:102
 msgid "Enable download"
 msgstr "Можно скачать"
 
-#: vpn/models.py:99
-#, fuzzy
-#| msgid "Client name"
-msgid "Client"
-msgstr "Имя клиента"
+#: vpn/models.py:103
+msgid "User"
+msgstr ""
 
-#: vpn/models.py:100
-#, fuzzy
-#| msgid "Client name"
+#: vpn/models.py:109
+msgid "Client"
+msgstr "Клиента"
+
+#: vpn/models.py:110
 msgid "Clients"
-msgstr "Имя клиента"
+msgstr "👤 Клиенты"

@@ -26,6 +26,18 @@ class DataForm(forms.ModelForm):
     data = forms.JSONField(encoder=PrettyJSONEncoder, initial=dict, required=False)
 
 
+cfg_link = _('Cfg link')
+download_link = _('Download cfg')
+
+
+def check_if_user_in_group(user, group_name):
+    if user.is_superuser:
+        return True
+    if user.groups.filter(name=group_name).exists():
+        return True
+    return False
+
+
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):
     list_display = ['name', 'server', 'interface', 'network', 'is_enable']
@@ -40,6 +52,20 @@ class ServerAdmin(admin.ModelAdmin):
     @staticmethod
     def interface(obj):
         return f'{obj.data.get("interface")}'
+
+    def get_actions(self, request):
+        actions = super(ServerAdmin, self).get_actions(request)
+        if not request.user.is_superuser:
+            if 'server_restart' in actions:
+                del actions['server_restart']
+        return actions
+
+    def get_fields(self, request, obj=None):
+        # Show the user field only to the superuser
+        if not request.user.is_superuser:
+            return ['name', 'ip', 'port', 'network', 'is_enable']
+
+        return ['name', 'ip', 'port', 'network', 'data', 'is_enable', 'ssh_copy_id_help']
 
     @admin.action(description='Restart server')
     def server_restart(self, request, queryset):
@@ -71,7 +97,7 @@ class ServerAdmin(admin.ModelAdmin):
 
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ['name', ]
+    list_display = ['name', 'description']
 
     formfield_overrides = {
         models.TextField: {'widget': Textarea(
@@ -82,7 +108,8 @@ class GroupAdmin(admin.ModelAdmin):
 
     def get_form(self, request, obj=None, change=False, **kwargs):
         form = super().get_form(request, obj=obj, change=change, **kwargs)
-        form.base_fields["ips"].help_text = _("Allowed IPs, comma-separated")
+        if request.user.is_superuser:
+            form.base_fields["ips"].help_text = _("Allowed IPs, comma-separated")
         return form
 
 
@@ -95,31 +122,34 @@ class ClientForm(forms.ModelForm):
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
     list_display = ['name', 'server', 'ip', 'is_enable', 'enable_download', 'group', 'last_seen', 'traffic',
-                    'remote_ip', 'config_link', 'config_download', 'download_count']
+                    'remote_ip', 'config_link', 'config_download', 'download_count', 'user']
     readonly_fields = ['rnd', 'created_at', 'update_at', 'download_count']
     search_fields = ['name', 'data__ip']
     # list_filter = ['group__name', 'server', 'is_enable']
     list_editable = ['is_enable', 'enable_download']
     form = ClientForm
     # change_list_template = "admin/config_wg.html"
-    fieldsets = (
-        (None, {'fields': ('name',)}),
-        (None, {'fields': ('description',)}),
-        (None, {'fields': ('is_enable',)}),
-        (None, {'fields': ('enable_download',)}),
-        (None, {'fields': ('server',)}),
-        (None, {'fields': ('group',)}),
-        (None, {'fields': ('data',)}),
-        (None, {'fields': ('created_at', 'update_at')}),
-    )
+    # fieldsets = (
+    #     (None, {'fields': ('name',)}),
+    #     (None, {'fields': ('description',)}),
+    #     (None, {'fields': ('is_enable',)}),
+    #     (None, {'fields': ('enable_download',)}),
+    #     (None, {'fields': ('server',)}),
+    #     (None, {'fields': ('group',)}),
+    #     (None, {'fields': ('data',)}),
+    #     (None, {'fields': ('user',)}),
+    #     (None, {'fields': ('created_at', 'update_at')}),
+    # )
+    fields = ['name', 'description', 'is_enable', 'enable_download', 'server', 'group', 'data', 'user', 'created_at',
+              'update_at']
 
     @staticmethod
-    @admin.display(description=format_html(f"<center>{_('download cfg')}</center>"))
+    @admin.display(description=format_html(f"<center>{ download_link }</center>"))
     def config_download(obj):
         return format_html(f"<center><a href='get_config/{obj.id}/'>💾</a></center>")
 
     @staticmethod
-    @admin.display(description=format_html(f"<center>{_('cfg link')}</center>"))
+    @admin.display(description=format_html(f"<center>{ cfg_link }</center>"))
     def config_link(obj):
         return format_html(f"<center><a href='/cfg/{obj.rnd}/'>cfg-{obj.id}</a>"
                            f"<a href='#' onClick=copyToClipboard('/cfg/{obj.rnd}/') title='Copy link'> ✅</a></center>"
@@ -127,7 +157,6 @@ class ClientAdmin(admin.ModelAdmin):
 
     @staticmethod
     def client_config(request, config_id):
-        logger.info(config_id)
         return get_client_file(config_id)
 
     def get_urls(self):
@@ -139,6 +168,27 @@ class ClientAdmin(admin.ModelAdmin):
     @staticmethod
     def ip(obj):
         return f'{obj.data.get("ip")}'
+
+    def save_model(self, request, obj, form, change):
+        #  Automatic fill in the user field if it is empty
+        if not obj.user:
+            obj.user = request.user
+        super().save_model(request, obj, form, change)
+
+    def get_fields(self, request, obj=None):
+        # Show the user field only to the superuser
+        if not request.user.is_superuser:
+            return ['name', 'description', 'is_enable', 'enable_download', 'server', 'group', 'created_at', 'update_at']
+
+        return ['name', 'description', 'is_enable', 'enable_download', 'server', 'group', 'data', 'user',
+                'created_at', 'update_at']
+
+    def get_queryset(self, request):
+        # Show only those clients that belong to the group of the current user
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(user__groups__in=request.user.groups.all())
 
     class Media:
         js = ('admin/js/copy.js',)

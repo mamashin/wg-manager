@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-08-20 14:59+0300\n"
+"POT-Creation-Date: 2023-08-23 23:45+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: vpn/admin.py:85
+#: vpn/admin.py:29
+msgid "Cfg link"
+msgstr ""
+
+#: vpn/admin.py:30
+msgid "Download cfg"
+msgstr ""
+
+#: vpn/admin.py:112
 msgid "Allowed IPs, comma-separated"
 msgstr ""
 
@@ -26,11 +34,11 @@ msgstr ""
 msgid "Server name"
 msgstr ""
 
-#: vpn/models.py:25 vpn/models.py:84
+#: vpn/models.py:25 vpn/models.py:93
 msgid "Active"
 msgstr ""
 
-#: vpn/models.py:31 vpn/models.py:90
+#: vpn/models.py:31 vpn/models.py:99
 msgid "Server"
 msgstr ""
 
@@ -42,46 +50,54 @@ msgstr ""
 msgid "Allowed IPs"
 msgstr ""
 
-#: vpn/models.py:61 vpn/models.py:83
+#: vpn/models.py:61 vpn/models.py:92
 msgid "Description"
 msgstr ""
 
-#: vpn/models.py:67 vpn/models.py:87
-msgid "Client group"
+#: vpn/models.py:67
+msgid "Access group"
 msgstr ""
 
 #: vpn/models.py:68
-msgid "Client groups"
-msgstr ""
-
-#: vpn/models.py:82
-msgid "Client name"
-msgstr ""
-
-#: vpn/models.py:85
-msgid "Create time"
-msgstr ""
-
-#: vpn/models.py:86
-msgid "Update time"
+msgid "Access groups"
 msgstr ""
 
 #: vpn/models.py:91
-msgid "Client data"
+msgid "Client name"
 msgstr ""
 
-#: vpn/models.py:92
-msgid "Download count"
+#: vpn/models.py:94
+msgid "Create time"
 msgstr ""
 
-#: vpn/models.py:93
-msgid "Enable download"
+#: vpn/models.py:95
+msgid "Update time"
 msgstr ""
 
-#: vpn/models.py:99
-msgid "Client"
+#: vpn/models.py:96
+msgid "Client group"
 msgstr ""
 
 #: vpn/models.py:100
+msgid "Client data"
+msgstr ""
+
+#: vpn/models.py:101
+msgid "Download count"
+msgstr ""
+
+#: vpn/models.py:102
+msgid "Enable download"
+msgstr ""
+
+#: vpn/models.py:103
+msgid "User"
+msgstr ""
+
+#: vpn/models.py:109
+msgid "Client"
+msgstr ""
+
+#: vpn/models.py:110
 msgid "Clients"
 msgstr ""

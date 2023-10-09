@@ -64,8 +64,8 @@ class Group(models.Model):
         return f'{self.name}'
 
     class Meta:
-        verbose_name = _('Client group')
-        verbose_name_plural = _('Client groups')
+        verbose_name = _('Access group')
+        verbose_name_plural = _('Access groups')
 
     def clean(self):
         clean_string = re.sub(r'\s+', '', self.ips)
@@ -100,6 +100,7 @@ class Client(models.Model):
     data = models.JSONField(default=dict, verbose_name=_("Client data"), blank=True)
     download_count = models.IntegerField(default=0, verbose_name=_("Download count"))
     enable_download = models.BooleanField(default=True, verbose_name=_("Enable download"))
+    user = models.ForeignKey(User, blank=True, null=True, on_delete=models.SET_NULL, verbose_name=_("User"))
 
     def __str__(self):
         return f'{self.name}'

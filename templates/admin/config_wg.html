@@ -1,0 +1,10 @@
+{% extends 'admin/change_list.html' %}
+{% block object-tools %}
+{#  <form action="server_keygen/" method="POST">#}
+{#    {% csrf_token %}#}
+{#    <input type="submit" value="Server Key Gen" />#}
+{#  </form>#}
+{#    <a href="server_keygen/">[🔑 Srv Key Gen]</a>&nbsp;&nbsp;#}
+{#    <a href="server_restart/">[♻️ Srv Restart]</a>#}
+    {{ block.super }}
+{% endblock %}

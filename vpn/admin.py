@@ -25,6 +25,14 @@ class PrettyJSONEncoder(json.JSONEncoder):
 class DataForm(forms.ModelForm):
     data = forms.JSONField(encoder=PrettyJSONEncoder, initial=dict, required=False)
 
+    class Meta:
+        help_texts = {'ip': _('ssh ip/hostname for manage server'),
+                      'hostname': _('server hostname for client connection'),
+                      'port': _('port for wireguard connection'),
+                      'network': _('network for vpn clients'),
+                      'is_enable': _('can only disable, if need to enable - make restart via menu'),
+                      }
+
 
 cfg_link = _('Cfg link')
 download_link = _('Download cfg')
@@ -40,38 +48,48 @@ def check_if_user_in_group(user, group_name):
 
 @admin.register(Server)
 class ServerAdmin(admin.ModelAdmin):
-    list_display = ['name', 'server', 'interface', 'network', 'is_enable']
+    list_display = ['name', 'server', 'interface', 'network', 'ssh_host', 'is_enable', 'clients_count']
     readonly_fields = ['ssh_copy_id_help', ]
-    actions = ['server_restart', 'server_statistic']
+    actions = ['server_restart', 'server_statistic', 'server_enable']
     form = DataForm
 
-    @staticmethod
-    def server(obj):
-        return f'{obj.ip}:{obj.port}'
+    @admin.display(description='Server')
+    def server(self, obj):
+        return f'{obj.hostname}:{obj.port}'
 
-    @staticmethod
-    def interface(obj):
+    @admin.display(description='Interface')
+    def interface(self, obj):
         return f'{obj.data.get("interface")}'
+
+    @admin.display(description='SSH MNGM')
+    def ssh_host(self, obj):
+        return f'{obj.ip}'
+
+    @admin.display(description='Clients')
+    def clients_count(self, obj):
+        return f'{obj.client_set.count()}'
 
     def get_actions(self, request):
         actions = super(ServerAdmin, self).get_actions(request)
         if not request.user.is_superuser:
             if 'server_restart' in actions:
                 del actions['server_restart']
+            if 'server_enable' in actions:
+                del actions['server_enable']
         return actions
 
     def get_fields(self, request, obj=None):
         # Show the user field only to the superuser
         if not request.user.is_superuser:
-            return ['name', 'ip', 'port', 'network', 'is_enable']
+            return ['name', 'hostname', 'port', 'network', 'is_enable']
 
-        return ['name', 'ip', 'port', 'network', 'data', 'is_enable', 'ssh_copy_id_help']
+        return ['name', 'ip', 'port', 'network', 'hostname', 'data', 'is_enable', 'ssh_copy_id_help']
 
     @admin.action(description='Restart server')
     def server_restart(self, request, queryset):
         from vpn.services import ssh_remote_server
         for srv in queryset:
-            status = ssh_remote_server(srv, restart=True)
+            status = ssh_remote_server(srv, cmd='restart')
             if not status.get('ok'):
                 self.message_user(request, f'Error to restart server {srv} - {status.get("msg")}', messages.ERROR)
             if status.get('ok'):
@@ -81,6 +99,16 @@ class ServerAdmin(admin.ModelAdmin):
                 srv.save()
                 self.message_user(request, f'Server {srv} is active now !', messages.WARNING)
 
+    @admin.action(description='Enable server autostart')
+    def server_enable(self, request, queryset):
+        from vpn.services import ssh_remote_server
+        for srv in queryset:
+            status = ssh_remote_server(srv, cmd='enable')
+            if not status.get('ok'):
+                self.message_user(request, f'Error to enable server {srv} - {status.get("msg")}', messages.ERROR)
+            if status.get('ok'):
+                self.message_user(request, f'Server {srv} autostart set OK', messages.SUCCESS)
+
     @admin.action(description='Server statistic')
     def server_statistic(self, request, queryset):
         from vpn.services import ssh_remote_server
@@ -88,7 +116,7 @@ class ServerAdmin(admin.ModelAdmin):
             if not srv.is_enable:
                 self.message_user(request, f'Server  {srv} is not active !', messages.WARNING)
                 continue
-            status = ssh_remote_server(srv, statistic=True)
+            status = ssh_remote_server(srv, cmd='statistic')
             if not status.get('ok'):
                 self.message_user(request, f'Error to get statistic from  {srv} - {status.get("msg")}', messages.ERROR)
             if status.get('ok'):

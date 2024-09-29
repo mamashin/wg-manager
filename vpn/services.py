@@ -4,6 +4,7 @@ __author__ = 'Nikolay Mamashin (mamashin@gmail.com)'
 import ipaddress
 import os
 import re
+import time
 
 from decouple import config  # noqa
 from django.http import HttpResponse
@@ -27,7 +28,7 @@ DNS = 1.1.1.1,8.8.8.8
 """
     peer = f"""
 [Peer]
-Endpoint = {server_instance.ip}:{server_instance.port}
+Endpoint = {server_instance.hostname}:{server_instance.port}
 PublicKey = {server_instance.data.get('public_key')}
 AllowedIPs = {client_instance.group.ips_for_config}
 
@@ -104,8 +105,7 @@ def ssh_keygen(srv_id, copy_ssh_key_id=None):
                             shell=True)
 
 
-def ssh_remote_server(srv_instance: Server, client_instance: Client = None,
-                      restart: bool = False, statistic: bool = False, stop: bool = False) -> dict:
+def ssh_remote_server(srv_instance: Server, client_instance: Client = None, cmd: str = None) -> dict:
     result = {'ok': False}
     import paramiko
     from django.conf import settings
@@ -120,7 +120,7 @@ def ssh_remote_server(srv_instance: Server, client_instance: Client = None,
         result['msg'] = msg
         return result
 
-    if statistic:
+    if cmd == 'statistic':
         stats = {}
         stdin, stdout, stderr = client.exec_command('wg show all dump')
         out = stdout.read().decode('utf-8')
@@ -154,23 +154,52 @@ def ssh_remote_server(srv_instance: Server, client_instance: Client = None,
         result['ok'] = True
         return result
 
-    sftp = client.open_sftp()
-    write_server_config(srv_instance.id)
+    def generate_config():
+        # Generate server config to local tmp file and copy it to remote server
+        sftp = client.open_sftp()
+        write_server_config(srv_instance.id)
+        remote_cfg_path = f'{config("WIREGUARD_CONFIG_BASE_PATH")}/{srv_instance.data.get("interface")}.conf'
+        sftp.put(config('TMP_SERVER_FILE'), remote_cfg_path)
+        sftp.chmod(remote_cfg_path, 0o600)
+        sftp.close()
+        time.sleep(1)
 
-    remote_cfg_path = f'{config("WIREGUARD_CONFIG_BASE_PATH")}/{srv_instance.data.get("interface")}.conf'
-    sftp.put(config('TMP_SERVER_FILE'), remote_cfg_path)
-    sftp.chmod(remote_cfg_path, 0o600)
+    if cmd in ['restart', 'stop', 'enable', 'disable', 'firewall_add', 'firewall_remove', 'config_remove']:
+        if cmd == 'restart':
+            generate_config()
+            stdin, stdout, stderr = client.exec_command(f"service wg-quick@{srv_instance.data.get('interface')} restart")
+        if cmd == 'stop':
+            stdin, stdout, stderr = client.exec_command(f"service wg-quick@{srv_instance.data.get('interface')} stop")
+        if cmd == 'enable':
+            stdin, stdout, stderr = client.exec_command(f"systemctl enable wg-quick@{srv_instance.data.get('interface')}")
+        if cmd == 'disable':
+            stdin, stdout, stderr = client.exec_command(f"systemctl disable wg-quick@{srv_instance.data.get('interface')}")
+        if cmd == 'firewall_add':
+            # Add firewall rule for server
+            stdin, stdout, stderr = client.exec_command(f"iptables -I INPUT -p udp -m udp --dport {srv_instance.port} -j ACCEPT")
+            stdin, stdout, stderr = client.exec_command(f"iptables-save > /etc/network/iptables.rules")
+        if cmd == 'firewall_remove':
+            # Remove firewall rule for server
+            stdin, stdout, stderr = client.exec_command(f"iptables -D INPUT -p udp -m udp --dport {srv_instance.port} -j ACCEPT")
+            stdin, stdout, stderr = client.exec_command(f"iptables-save > /etc/network/iptables.rules")
+        if cmd == 'config_remove':
+            # Remove server config from remote server
+            cfg_path = f'{config("WIREGUARD_CONFIG_BASE_PATH")}/{srv_instance.data.get("interface")}.conf'
+            stdin, stdout, stderr = client.exec_command(f"rm {cfg_path}")
 
-    if client_instance and client_instance.is_enable:
-        stdin, stdout, stderr = client.exec_command(client_instance.set_add)
-    if client_instance and not client_instance.is_enable:
-        stdin, stdout, stderr = client.exec_command(client_instance.set_remove)
+        client.close()
+        result['ok'] = True
+        return result
 
-    if restart:
-        stdin, stdout, stderr = client.exec_command(f"service wg-quick@{srv_instance.data.get('interface')} restart")
-    if stop:
-        stdin, stdout, stderr = client.exec_command(f"service wg-quick@{srv_instance.data.get('interface')} stop")
-    sftp.close()
+    generate_config()
+
+    if client_instance:
+        # Signal from client save (enable/disable), run command on remote server to add/remove client "on fly" (via wg)
+        if client_instance.is_enable:
+            stdin, stdout, stderr = client.exec_command(client_instance.set_add)
+        if not client_instance.is_enable:
+            stdin, stdout, stderr = client.exec_command(client_instance.set_remove)
+
     client.close()
 
     result['ok'] = True

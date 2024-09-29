@@ -15,11 +15,31 @@ from django.utils.translation import gettext_lazy as _
 def default_server_data():
     return {'interface': 'wg0'}
 
+def calc_last_interface_number(srv_address: str) -> int:
+    # Get all servers with same ip, then get all interfaces from json field 'data',
+    # sorted list, gat last, check if it looks like 'wgNN' and return last number + 1
+    if srv_list := Server.objects.filter(ip=srv_address).values_list('data', flat=True):
+        interfaces: list = [srv['interface'] for srv in srv_list if 'interface' in srv]
+        if not interfaces:
+            return 0
+        try:
+            interfaces = sorted(interfaces, key=lambda x: int(x[2:]))
+        except:
+            return 0
+        if interfaces[-1][0:2] == 'wg':
+            try:
+                last_number = int(interfaces[-1][2:])
+            except ValueError:
+                return 0
+            return last_number + 1
+    return 0
+
 
 class Server(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False, verbose_name=_("Server name"))
-    ip = models.CharField(max_length=255, verbose_name="IP/Hostname", default='0.0.0.0', blank=False, null=False)
+    ip = models.CharField(max_length=255, verbose_name="MNGM IP/Hostname", default='0.0.0.0', blank=False, null=False)
     port = models.IntegerField(verbose_name="port", default=41800, blank=False)
+    hostname = models.CharField(max_length=255, verbose_name="Client Hostname", blank=True, null=True)
     network = models.CharField(max_length=255, verbose_name="Network", default='10.10.10.0/24', blank=False, null=False)
     data = models.JSONField(default=default_server_data, verbose_name="Server data", blank=True)
     is_enable = models.BooleanField(default=True, verbose_name=_("Active"))
@@ -30,6 +50,9 @@ class Server(models.Model):
     class Meta:
         verbose_name = _('Server')
         verbose_name_plural = _('Servers')
+        # constraints = [
+        #     models.UniqueConstraint(fields=['ip', 'port'], name='unique_ip_port')
+        # ]
 
     @property
     def ssh_copy_id_help(self) -> str:
@@ -47,7 +70,7 @@ class Server(models.Model):
         created = self._state.adding
         if created:
             private_key, public_key = key_gen()
-            self.data['interface'] = 'wg0'
+            self.data['interface'] = f'wg{calc_last_interface_number(self.ip)}'
             self.data['persistent'] = 20
             self.data['route'] = '0.0.0.0/0'
             self.data['private_key'] = private_key

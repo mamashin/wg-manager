@@ -26,7 +26,7 @@ class DataForm(forms.ModelForm):
     data = forms.JSONField(encoder=PrettyJSONEncoder, initial=dict, required=False)
 
     class Meta:
-        help_texts = {'ip': _('ssh ip/hostname for manage server'),
+        help_texts = {'ip': _('ssh ip/hostname for manage server, format: ip:port'),
                       'hostname': _('server hostname for client connection'),
                       'port': _('port for wireguard connection'),
                       'network': _('network for vpn clients'),

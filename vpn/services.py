@@ -112,8 +112,8 @@ def ssh_remote_server(srv_instance: Server, client_instance: Client = None, cmd:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(hostname=srv_instance.ip, username='root', timeout=3,
-                       key_filename=f'{settings.BASE_DIR}/config/keys/{srv_instance.id}')
+        client.connect(hostname=srv_instance.get_internal_ssh_host, port=srv_instance.get_internal_ssh_port,
+                       username='root', timeout=3, key_filename=f'{settings.BASE_DIR}/config/keys/{srv_instance.id}')
     except Exception as e:
         msg = f"can't connect to server via ssh: {e}"
         logger.error(msg)

@@ -37,7 +37,8 @@ def calc_last_interface_number(srv_address: str) -> int:
 
 class Server(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False, verbose_name=_("Server name"))
-    ip = models.CharField(max_length=255, verbose_name="MNGM IP/Hostname", default='0.0.0.0', blank=False, null=False)
+    ip = models.CharField(max_length=255, verbose_name="MNGM IP/Hostname:port", default='localhost:22', blank=False,
+                          null=False)
     port = models.IntegerField(verbose_name="port", default=41800, blank=False)
     hostname = models.CharField(max_length=255, verbose_name="Client Hostname", blank=True, null=True)
     network = models.CharField(max_length=255, verbose_name="Network", default='10.10.10.0/24', blank=False, null=False)
@@ -57,14 +58,32 @@ class Server(models.Model):
     @property
     def ssh_copy_id_help(self) -> str:
         if self.name:
-            return f'ssh-copy-id -i {settings.BASE_DIR}/config/keys/{self.id}.pub root@{self.ip}'
+            return (f'ssh-copy-id -p {self.get_internal_ssh_port} -i {settings.BASE_DIR}/config/keys/{self.id}.pub '
+                    f'root@{self.get_internal_ssh_host}')
         return "-"
+
+    @property
+    def get_internal_ssh_host(self) -> str:
+        try:
+            return self.ip.split(':')[0]
+        except IndexError:
+            return self.ip
+
+    @property
+    def get_internal_ssh_port(self) -> int:
+        try:
+            return int(self.ip.split(':')[1])
+        except IndexError:
+            return 22
 
     def clean(self):
         try:
             IPv4Network(self.network)
         except (ValueError, AddressValueError):
             raise ValidationError({"network": "Not looks like valid network"})
+
+        if len(self.ip.split(':')) != 2:
+            raise ValidationError({"ip": "Not looks like valid ip:port"})
 
     def save(self, *args, **kwargs):
         created = self._state.adding
